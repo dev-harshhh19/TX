@@ -3,9 +3,14 @@ import { EventsService } from './events.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 
+import { UsersService } from '../users/users.service';
+
 @Controller('events')
 export class EventsController {
-    constructor(private readonly eventsService: EventsService) { }
+    constructor(
+        private readonly eventsService: EventsService,
+        private readonly usersService: UsersService
+    ) { }
 
     @Post()
     create(@Body() createEventDto: CreateEventDto) {
@@ -20,6 +25,11 @@ export class EventsController {
     @Get(':id')
     findOne(@Param('id') id: string) {
         return this.eventsService.findOne(id);
+    }
+
+    @Get(':id/participants')
+    findParticipants(@Param('id') id: string) {
+        return this.usersService.findByEvent(id);
     }
 
     @Patch(':id')

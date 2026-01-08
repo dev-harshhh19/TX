@@ -1,18 +1,21 @@
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { getMyRegistrations, getMyTransactions, getMyNotifications, markNotificationAsRead } from '@/lib/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getMyRegistrations, getMyTransactions, getMyNotifications, markNotificationAsRead, getItems, bidItem, buyItem, getProfile } from '@/lib/api';
 import Navbar from '@/components/Navbar';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, LogOut, User, Bell, Info, CheckCircle, AlertTriangle, AlertCircle, Check } from 'lucide-react';
+import { Loader2, LogOut, User, Bell, Info, CheckCircle, AlertTriangle, AlertCircle, Check, Wallet, Gavel, ShoppingBag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import NeonButton from '@/components/NeonButton';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 const UserDashboard = () => {
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
+    // -- Queries --
     const { data: myRegistrations, isLoading: isLoadingRegs } = useQuery({
         queryKey: ['myRegistrations'],
         queryFn: getMyRegistrations,
@@ -28,11 +31,49 @@ const UserDashboard = () => {
         queryFn: getMyNotifications,
     });
 
+    const { data: userProfile } = useQuery({
+        queryKey: ['profile'],
+        queryFn: getProfile,
+    });
+
+    const { data: marketplaceItems, isLoading: isLoadingMarket } = useQuery({
+        queryKey: ['marketplaceItems'],
+        queryFn: getItems,
+    });
+
+    // -- Mutations --
     const markReadMutation = useMutation({
         mutationFn: markNotificationAsRead,
         onSuccess: () => refetchNotifications()
     });
 
+    const bidMutation = useMutation({
+        mutationFn: bidItem,
+        onSuccess: () => {
+            toast.success('Bid placed successfully!');
+            queryClient.invalidateQueries({ queryKey: ['marketplaceItems'] });
+            queryClient.invalidateQueries({ queryKey: ['myTransactions'] });
+            queryClient.invalidateQueries({ queryKey: ['profile'] });
+        },
+        onError: (error: any) => {
+            toast.error(error.response?.data?.message || 'Failed to place bid');
+        }
+    });
+
+    const buyMutation = useMutation({
+        mutationFn: buyItem,
+        onSuccess: () => {
+            toast.success('Item purchased successfully!');
+            queryClient.invalidateQueries({ queryKey: ['marketplaceItems'] });
+            queryClient.invalidateQueries({ queryKey: ['myTransactions'] });
+            queryClient.invalidateQueries({ queryKey: ['profile'] });
+        },
+        onError: (error: any) => {
+            toast.error(error.response?.data?.message || 'Failed to purchase item');
+        }
+    });
+
+    // -- Helpers --
     const getIcon = (type: string) => {
         switch (type) {
             case 'success': return <CheckCircle className="h-5 w-5 text-green-500" />;
@@ -48,7 +89,7 @@ const UserDashboard = () => {
         navigate('/login');
     };
 
-    if (isLoadingRegs || isLoadingTxns) {
+    if (isLoadingRegs || isLoadingTxns || isLoadingMarket) {
         return (
             <div className="flex h-screen items-center justify-center bg-background">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -71,13 +112,14 @@ const UserDashboard = () => {
                 </div>
 
                 <div className="grid gap-6 md:grid-cols-3 mb-8">
+                    {/* Profile Card */}
                     <Card className="bg-card/50 border-primary/20 md:col-span-1">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <User className="h-5 w-5 text-primary" /> Profile Info
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-2">
+                        <CardContent className="space-y-4">
                             <div>
                                 <span className="text-sm text-muted-foreground">Username:</span>
                                 <p className="font-medium">{user.username}</p>
@@ -86,14 +128,26 @@ const UserDashboard = () => {
                                 <span className="text-sm text-muted-foreground">Role:</span>
                                 <p className="font-medium capitalize">{user.role}</p>
                             </div>
+                            {user.role !== 'user' && (
+                                <div className="pt-4 border-t border-primary/10">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <Wallet className="h-5 w-5 text-yellow-500" />
+                                        <span className="font-semibold text-lg text-yellow-500">Wallet</span>
+                                    </div>
+                                    <p className="text-2xl font-bold">{userProfile?.points ?? user.points ?? 0} Points</p>
+                                    <p className="text-xs text-muted-foreground">Earn points by participating in events.</p>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
 
+                    {/* Main Tabs */}
                     <div className="md:col-span-2">
                         <Tabs defaultValue="registrations" className="w-full">
-                            <TabsList className="bg-card/50 border border-primary/20">
-                                <TabsTrigger value="registrations">My Registrations</TabsTrigger>
-                                <TabsTrigger value="transactions">Payment History</TabsTrigger>
+                            <TabsList className="bg-card/50 border border-primary/20 mb-4 w-full justify-start overflow-x-auto">
+                                <TabsTrigger value="registrations">Registrations</TabsTrigger>
+                                <TabsTrigger value="marketplace">Marketplace & Auction</TabsTrigger>
+                                <TabsTrigger value="transactions">History</TabsTrigger>
                                 <TabsTrigger value="notifications" className="relative">
                                     Notifications
                                     {notifications?.some((n: any) => !n.isRead && !n.readBy?.includes(user?.userId)) && (
@@ -114,7 +168,7 @@ const UserDashboard = () => {
                                                 <TableRow>
                                                     <TableHead>Event</TableHead>
                                                     <TableHead>Type</TableHead>
-                                                    <TableHead>Date</TableHead>
+                                                    <TableHead className="text-right">Date</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
@@ -122,7 +176,7 @@ const UserDashboard = () => {
                                                     <TableRow key={reg._id}>
                                                         <TableCell className="font-medium">{reg.eventName}</TableCell>
                                                         <TableCell>{reg.type}</TableCell>
-                                                        <TableCell>
+                                                        <TableCell className="text-right">
                                                             {new Date(reg.createdAt).toLocaleDateString()}
                                                         </TableCell>
                                                     </TableRow>
@@ -138,11 +192,90 @@ const UserDashboard = () => {
                                 </Card>
                             </TabsContent>
 
+                            <TabsContent value="marketplace">
+                                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                    {marketplaceItems?.length === 0 && (
+                                        <div className="col-span-full text-center py-8 text-muted-foreground">
+                                            No items available in the marketplace.
+                                        </div>
+                                    )}
+                                    {marketplaceItems?.map((item: any) => (
+                                        <Card key={item._id} className="bg-card/50 border-primary/20 flex flex-col">
+                                            <CardHeader className="pb-2">
+                                                <CardTitle className="flex items-center gap-2 text-lg">
+                                                    {item.type === 'auction' ? <Gavel className="h-4 w-4 text-purple-500" /> : <ShoppingBag className="h-4 w-4 text-green-500" />}
+                                                    {item.title}
+                                                </CardTitle>
+                                                <CardDescription>{item.description}</CardDescription>
+                                            </CardHeader>
+                                            <CardContent className="flex-1">
+                                                {item.image && (
+                                                    <div className="mb-4 rounded-md overflow-hidden aspect-video bg-muted">
+                                                        <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                                                    </div>
+                                                )}
+                                                <div className="space-y-2">
+                                                    {item.type === 'auction' ? (
+                                                        <>
+                                                            <div className="flex justify-between text-sm">
+                                                                <span className="text-muted-foreground">Current Bid:</span>
+                                                                <span className="font-bold text-primary">{item.currentBid} Pts</span>
+                                                            </div>
+                                                            <div className="flex justify-between text-sm">
+                                                                <span className="text-muted-foreground">Highest Bidder:</span>
+                                                                <span className="font-mono">{item.highestBidder?.username || 'None'}</span>
+                                                            </div>
+                                                            {item.endTime && (
+                                                                <div className="text-xs text-muted-foreground mt-2">
+                                                                    Ends: {new Date(item.endTime).toLocaleString()}
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    ) : (
+                                                        <div className="flex justify-between items-center mt-2">
+                                                            <span className="text-muted-foreground">Price:</span>
+                                                            <span className="text-xl font-bold text-primary">{item.price} Pts</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </CardContent>
+                                            <CardFooter>
+                                                {item.type === 'auction' ? (
+                                                    <NeonButton
+                                                        className="w-full"
+                                                        size="sm"
+                                                        onClick={() => {
+                                                            const amount = parseInt(prompt(`Enter bid amount (Current: ${item.currentBid}):`, (item.currentBid + 50).toString()) || '0');
+                                                            if (amount > item.currentBid) {
+                                                                bidMutation.mutate({ id: item._id, amount });
+                                                            } else {
+                                                                toast.error('Bid must be higher than current bid');
+                                                            }
+                                                        }}
+                                                        disabled={bidMutation.isPending}
+                                                    >
+                                                        Place Bid
+                                                    </NeonButton>
+                                                ) : (
+                                                    <NeonButton
+                                                        className="w-full"
+                                                        size="sm"
+                                                        onClick={() => buyMutation.mutate(item._id)}
+                                                        disabled={buyMutation.isPending || item.status !== 'active'}
+                                                    >
+                                                        {item.status === 'sold' ? 'Sold Out' : 'Buy Now'}
+                                                    </NeonButton>
+                                                )}
+                                            </CardFooter>
+                                        </Card>
+                                    ))}
+                                </div>
+                            </TabsContent>
+
                             <TabsContent value="transactions">
                                 <Card className="bg-card/50 border-primary/20">
                                     <CardHeader>
                                         <CardTitle>Transaction History</CardTitle>
-                                        <CardDescription>Your recent payment activities.</CardDescription>
                                     </CardHeader>
                                     <CardContent>
                                         <Table>
@@ -150,8 +283,7 @@ const UserDashboard = () => {
                                                 <TableRow>
                                                     <TableHead>Type</TableHead>
                                                     <TableHead>Status</TableHead>
-                                                    <TableHead>Action</TableHead>
-                                                    <TableHead className="text-right">Date</TableHead>
+                                                    <TableHead className="text-right">Amount</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
@@ -159,15 +291,12 @@ const UserDashboard = () => {
                                                     <TableRow key={txn._id}>
                                                         <TableCell>{txn.type}</TableCell>
                                                         <TableCell>{txn.status}</TableCell>
-                                                        <TableCell>{txn.action}</TableCell>
-                                                        <TableCell className="text-right">
-                                                            {new Date(txn.createdAt).toLocaleDateString()}
-                                                        </TableCell>
+                                                        <TableCell className="text-right">{txn.metadata?.amount || '-'}</TableCell>
                                                     </TableRow>
                                                 ))}
                                                 {(!myTransactions || myTransactions.length === 0) && (
                                                     <TableRow>
-                                                        <TableCell colSpan={4} className="text-center">No transactions found</TableCell>
+                                                        <TableCell colSpan={3} className="text-center">No transactions found</TableCell>
                                                     </TableRow>
                                                 )}
                                             </TableBody>
@@ -177,12 +306,11 @@ const UserDashboard = () => {
                             </TabsContent>
 
                             <TabsContent value="notifications">
-                                <Card className="bg-card/50 border-primary/20">
+                                <Card className="bg-card/50 border-primary/20 max-w-2xl mx-auto">
                                     <CardHeader>
                                         <CardTitle className="flex items-center gap-2">
                                             <Bell className="h-5 w-5 text-primary" /> Notifications
                                         </CardTitle>
-                                        <CardDescription>Updates and messages from the admin.</CardDescription>
                                     </CardHeader>
                                     <CardContent className="space-y-4">
                                         {notifications?.map((notification: any) => {
@@ -206,7 +334,7 @@ const UserDashboard = () => {
                                                                     {notification.message}
                                                                 </p>
                                                                 <p className="text-xs text-muted-foreground/50 mt-2">
-                                                                    {new Date(notification.createdAt).toLocaleDateString()} {new Date(notification.createdAt).toLocaleTimeString()}
+                                                                    {new Date(notification.createdAt).toLocaleDateString()}
                                                                 </p>
                                                             </div>
                                                         </div>

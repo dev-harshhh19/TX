@@ -9,6 +9,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { RegistrationsModule } from './registrations/registrations.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { MarketplaceModule } from './marketplace/marketplace.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
 @Module({
@@ -28,6 +29,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
     TransactionsModule,
     RegistrationsModule,
     NotificationsModule,
+    MarketplaceModule,
   ],
   controllers: [AppController],
   providers: [AppService],

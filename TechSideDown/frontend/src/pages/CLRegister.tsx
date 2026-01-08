@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { login } from '@/lib/api';
+import { register } from '@/lib/api';
 import Navbar from '@/components/Navbar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,11 +8,13 @@ import NeonButton from '@/components/NeonButton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from 'sonner';
 
-const Login = () => {
+const CLRegister = () => {
     const navigate = useNavigate();
     const [formData, setFormData] = useState({
         username: '',
         password: '',
+        email: '',
+        college: '',
     });
     const [isLoading, setIsLoading] = useState(false);
 
@@ -24,17 +26,12 @@ const Login = () => {
         e.preventDefault();
         setIsLoading(true);
         try {
-            await login(formData);
-            toast.success('Login successful!');
-            const user = JSON.parse(localStorage.getItem('user') || '{}');
-            if (user.role === 'admin') {
-                navigate('/admin');
-            } else {
-                navigate('/dashboard');
-            }
-        } catch (error) {
+            await register({ ...formData, role: 'cl', points: 1000 });
+            toast.success('CL Application Submitted! Please login.');
+            navigate('/login');
+        } catch (error: any) {
             console.error(error);
-            toast.error('Invalid credentials');
+            toast.error(error.response?.data?.message || 'Registration failed');
         } finally {
             setIsLoading(false);
         }
@@ -46,8 +43,8 @@ const Login = () => {
             <div className="flex-1 flex items-center justify-center p-4">
                 <Card className="w-full max-w-md bg-card/50 border-primary/20">
                     <CardHeader>
-                        <CardTitle className="text-2xl font-display text-primary">Login</CardTitle>
-                        <CardDescription>Enter your credentials to access your account</CardDescription>
+                        <CardTitle className="text-2xl font-display text-primary">Campus Lead Registration</CardTitle>
+                        <CardDescription>Apply to be a Campus Lead for TechXpression</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={handleSubmit} className="space-y-4">
@@ -57,6 +54,29 @@ const Login = () => {
                                     id="username"
                                     name="username"
                                     value={formData.username}
+                                    onChange={handleChange}
+                                    required
+                                    className="bg-background/50 border-primary/20"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="email">Email</Label>
+                                <Input
+                                    id="email"
+                                    name="email"
+                                    type="email"
+                                    value={formData.email}
+                                    onChange={handleChange}
+                                    required
+                                    className="bg-background/50 border-primary/20"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="college">College</Label>
+                                <Input
+                                    id="college"
+                                    name="college"
+                                    value={formData.college}
                                     onChange={handleChange}
                                     required
                                     className="bg-background/50 border-primary/20"
@@ -75,10 +95,10 @@ const Login = () => {
                                 />
                             </div>
                             <NeonButton type="submit" className="w-full" disabled={isLoading}>
-                                {isLoading ? 'Logging in...' : 'Login'}
+                                {isLoading ? 'Submitting Application...' : 'Apply as CL'}
                             </NeonButton>
                             <div className="text-center text-sm text-muted-foreground mt-4">
-                                Don't have an account? <a href="/register" className="text-primary hover:underline">Register</a>
+                                Already have an account? <a href="/login" className="text-primary hover:underline">Login</a>
                             </div>
                         </form>
                     </CardContent>
@@ -88,4 +108,4 @@ const Login = () => {
     );
 };
 
-export default Login;
+export default CLRegister;

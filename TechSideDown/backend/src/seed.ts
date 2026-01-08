@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { EventsService } from './events/events.service';
 import { CreateEventDto } from './events/dto/create-event.dto';
+import { UsersService } from './users/users.service';
 
 async function bootstrap() {
     const app = await NestFactory.createApplicationContext(AppModule);
@@ -100,6 +101,37 @@ async function bootstrap() {
             console.log(`Created event: ${event.title}`);
         } catch (error) {
             console.error(`Failed to create event ${event.title}:`, error.message);
+        }
+    }
+
+    const usersService = app.get(UsersService);
+    const admins = [
+        {
+            username: "Sanskar",
+            password: "TX001",
+            email: "sanskar@tx.com", // Dummy email
+            role: "admin",
+            college: "TX University",
+            team: [],
+            points: 0
+        },
+        {
+            username: "Faculty",
+            password: "TX011",
+            email: "faculty@tx.com", // Dummy email
+            role: "admin",
+            college: "TX University",
+            team: [],
+            points: 0
+        }
+    ];
+
+    for (const admin of admins) {
+        try {
+            await usersService.create(admin);
+            console.log(`Created admin: ${admin.username}`);
+        } catch (error) {
+            console.log(`Admin ${admin.username} might already exist or failed: ${error.message}`);
         }
     }
 

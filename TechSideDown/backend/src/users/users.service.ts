@@ -40,4 +40,20 @@ export class UsersService {
             )
             .exec();
     }
+
+    async findByEvent(eventId: string): Promise<User[]> {
+        return this.userModel.find({ registeredEvents: new Types.ObjectId(eventId) }).exec();
+    }
+
+    async updatePoints(userId: string, points: number): Promise<User | null> {
+        return this.userModel.findByIdAndUpdate(
+            userId,
+            { $inc: { points: points } },
+            { new: true }
+        ).exec();
+    }
+
+    async findAll(): Promise<User[]> {
+        return this.userModel.find().select('-password').exec();
+    }
 }

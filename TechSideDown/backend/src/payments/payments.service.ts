@@ -90,4 +90,16 @@ export class PaymentsService {
             throw new BadRequestException('Invalid signature');
         }
     }
+    async findAll(): Promise<Payment[]> {
+        return this.paymentModel.find().populate('userId').populate('eventId').sort({ createdAt: -1 }).exec();
+    }
+
+    async updateStatus(id: string, status: string): Promise<Payment | null> {
+        const payment = await this.paymentModel.findByIdAndUpdate(id, { status }, { new: true }).exec();
+        if (status === 'success' && payment) {
+            await this.usersService.addEventToUser(payment.userId.toString(), payment.eventId.toString());
+            await this.transactionsService.create(payment.userId.toString(), 'PAYMENT', 'MANUAL_SUCCESS', { paymentId: payment._id, eventId: payment.eventId });
+        }
+        return payment;
+    }
 }

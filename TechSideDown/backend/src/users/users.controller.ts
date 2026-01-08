@@ -12,5 +12,8 @@ export class UsersController {
         return req.user;
     }
 
-    // Additional user management endpoints can go here
+    @Get()
+    async findAll() {
+        return this.usersService.findAll();
+    }
 }
